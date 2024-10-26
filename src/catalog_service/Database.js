@@ -7,9 +7,7 @@ if(err){
 }
 else{
     console.log("connect to database");
-}
-}
-)
+}})
 
 // Create table
 db.serialize(() => {
@@ -68,9 +66,23 @@ db.serialize(() => {
     });
   }
 
+  function updateStock(stock,ISBN,callback){ 
+    sql=`UPDATE catalog SET Stock = ? where ISBN = ?`;
+    db.run(sql,[stock,ISBN],(err)=>{
+
+        if (err) {
+            //callback(err, null);
+        } else {
+            console.log("Stock updated successfully");
+        }
+    })
+        
+  }
+
   module.exports = {
     SearchTopic,
-    Info
+    Info,
+    updateStock
 };
 
 
