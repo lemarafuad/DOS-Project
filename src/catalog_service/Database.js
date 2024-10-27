@@ -66,9 +66,9 @@ db.serialize(() => {
     });
   }
 
-  function updateStock(stock,ISBN,callback){ 
-    sql=`UPDATE catalog SET Stock = ? where ISBN = ?`;
-    db.run(sql,[stock,ISBN],(err)=>{
+  function updateStock(stock,id,callback){ 
+    sql=`UPDATE books SET stock = ? where id = ?`;
+    db.run(sql,[stock,id],(err)=>{
 
         if (err) {
             //callback(err, null);

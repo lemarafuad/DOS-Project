@@ -26,7 +26,7 @@ app.post('/purchase/:item_number', (req, res) => {                              
         if (err) {
             console.error('Error in inserting the data:', err.message);
         } else {
-            console.log('inserted successfully');//t
+            console.log('inserted successfully');
         }
     });
 
@@ -35,49 +35,52 @@ app.post('/purchase/:item_number', (req, res) => {                              
         if (err) {
             console.error(' querying error:', err.message);
         } else {
-            console.log('table result:');   //t                                                           // print all orders 
+            console.log('table result:');                                                              // print all orders 
             rows.forEach((row) => {
                 console.log(row);
             });
         }
     });
 
-    http.get('http://localhost:5000/info/' + req.params.item_number,(response)=>{                     //get http req to send it to catalog server
-        var responseData='';
+    http.get('http://localhost:5000/info/' + req.params.item_number, (response) => { 
+        var responseData = ''; 
         response.on("data", (chunk)=>{
-          
-           responseData = JSON.parse(chunk);
-           console.log('Fetched successfully');//t
-           console.log(responseData);
-           
+        responseData = JSON.parse(chunk);
+        console.log('Fetched successfully');
+        console.log(responseData);
+
         });
+    
         response.on('end', () => {
-            
-            if(responseData[0].Stock>0){
-                const updatedStock = responseData[0].Stock - 1;                                      //if the stock greater than 0 decrease the it by 1 
-
-                const updatedData = { Stock: updatedStock }; 
-
-                axios.put('http://localhost:5000/update/' + req.params.item_number, updatedData)     //http put req for update stock number
-                    .then((response) => {
-                        console.log("Success");
-                        res.json({ message: 'Purchase completed' });
-                    })
-                    .catch((error) => {
-                        console.error("Error:", error);
-                        res.json({ message: 'Failed to complete purchase' });
-                    });
-                    // res.json({ message: 'Purchase completed' });
-
-            }
-            else{
-                res.json({ message: 'Item is sold out' });
+            try {
+    
+                    if (responseData[0].Stock > 0) {
+                        const updatedStock = responseData[0].Stock - 1;
+    
+                        const updatedData = { Stock: updatedStock };
+    
+                        axios.put('http://localhost:5000/update/' + req.params.item_number, updatedData)
+                            .then(( response) => {
+                                console.log("Stock updated successfully");
+                                res.json({ message: 'Purchase completed' });
+                            })
+                            .catch((error) => {
+                                console.error("Error updating stock:", error);
+                                res.status(500).json({ message: 'Error updating stock' });
+                            });
+                            res.json({ message: 'Purchase completed' });
+                    } else {
+                        res.json({ message: 'Item is sold out' });
+                    }
+            } catch (error) {
+                console.error("Failed to parse JSON:", error, responseData);
+                res.status(500).json({ message: 'Error parsing item info' });
             }
         });      
    
-});
-
-});
+    });
+    
+    });  
 
 app.listen(port, () => {                                                                            // start the order server on port 5000
     console.log('Server is running on port:', port);
