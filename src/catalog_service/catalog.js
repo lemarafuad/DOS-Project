@@ -46,5 +46,5 @@ app.put('/update/:item_number',(req,res)=>{                                     
 })
 
 app.listen(port,()=>{  
-    console.log("Catalog server is running at 5000");                  
+    console.log(`Catalog server is running at ${port}`);                  
 })

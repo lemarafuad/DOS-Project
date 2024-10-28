@@ -42,7 +42,7 @@ app.post('/purchase/:item_number', (req, res) => {
         }
     });
 
-    http.get('http://localhost:5000/info/' + req.params.item_number, (response) => { 
+    http.get('http://catalog:5000/info/' + req.params.item_number, (response) => { 
         var responseData = ''; 
         response.on("data", (chunk)=>{
         responseData = JSON.parse(chunk);
@@ -59,7 +59,7 @@ app.post('/purchase/:item_number', (req, res) => {
     
                         const updatedData = { Stock: updatedStock };
     
-                        axios.put('http://localhost:5000/update/' + req.params.item_number, updatedData)
+                        axios.put('http://catalog:5000/update/' + req.params.item_number, updatedData)
                             .then(( response) => {
                                 console.log("Stock updated successfully");
                                 res.json({ message: 'Purchase completed' });
@@ -83,6 +83,6 @@ app.post('/purchase/:item_number', (req, res) => {
     });  
 
 app.listen(port, () => {                                                                            
-    console.log('Server is running on port:', port);
+    console.log(`Order server is running at ${port}`);
 
 });

@@ -7,7 +7,7 @@ const port = 3000;
 app.get('/search/:Topic',(req,res)=>{ 
 
  try {
-    http.get('http://localhost:5000/search/'+req.params.Topic,( response)=>{    // send to catalog server    
+    http.get('http://catalog:5000/search/'+req.params.Topic,( response)=>{    // send to catalog server    
         response.on("data", (chunk)=>{
             const responseData = JSON.parse(chunk);                                  
             res.json(responseData)                                                   
@@ -23,7 +23,7 @@ app.get('/search/:Topic',(req,res)=>{
 app.get('/info/:Itemid',(req,res)=>{ 
 
     try {
-       http.get('http://localhost:5000/info/'+req.params.Itemid,( response)=>{       
+       http.get('http://catalog:5000/info/'+req.params.Itemid,( response)=>{       
            response.on("data", (chunk)=>{
                const responseData = JSON.parse(chunk);                                  
                res.json(responseData)                                                   
@@ -38,7 +38,7 @@ app.get('/info/:Itemid',(req,res)=>{
 
    app.post('/purchase/:item_number', async (req,res)=>{                                                     
     try {
-        const response = await axios.post(`http://localhost:4000/purchase/${req.params.item_number}`);      // make an http post req to order server using axios
+        const response = await axios.post(`http://order:4000/purchase/${req.params.item_number}`);      // make an http post req to order server using axios
         console.log('Orderd successfully');
         console.log(response.data);
         res.json(response.data);
@@ -51,6 +51,6 @@ app.get('/info/:Itemid',(req,res)=>{
 
 
 app.listen(port,()=>{  
-    console.log("Catalog server is running at 3000");                  
+    console.log(`frontend server is running at ${port}`);                  
 })
 
