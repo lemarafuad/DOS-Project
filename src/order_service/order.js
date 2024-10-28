@@ -59,7 +59,7 @@ app.post('/purchase/:item_number', (req, res) => {
     
                         const updatedData = { Stock: updatedStock };
     
-                        axios.put('http://localhost:5000/update/' + req.params.item_number, updatedData)
+                        axios.put('http://catalog:5000/update/' + req.params.item_number, updatedData)
                             .then(( response) => {
                                 console.log("Stock updated successfully");
                                 res.json({ message: 'Purchase completed' });
@@ -82,6 +82,7 @@ app.post('/purchase/:item_number', (req, res) => {
     
     });  
 
-    app.listen(port,()=>{  
-        console.log("order server is running at 4000");                  
-    })
+app.listen(port, () => {                                                                            
+    console.log(`Order server is running at ${port}`);
+
+});
