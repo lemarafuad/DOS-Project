@@ -1,28 +1,28 @@
 //import the require modules 
-const express = require('express');              //1)import express module for bulding servers
-const http = require('http');                    //2)import http module for http req
-const axios = require('axios');                  //3)import axios module for req also
-const sqlite3 = require('sqlite3').verbose();    //4)Import Sqlite3 module for database
-const db = new sqlite3.Database('dbase.db');  //create Sqlite3 database instance
-const app = express();                           //create express app
-const port = 4000;                               //the port for front end server is 5000
+const express = require('express');              
+const http = require('http');                    
+const axios = require('axios');                  
+const sqlite3 = require('sqlite3').verbose();  
+const db = new sqlite3.Database('dbase.db'); 
+const app = express();                          
+const port = 4000;                               
 
-let ordersql = `CREATE TABLE IF NOT EXISTS "order" (order_number INTEGER PRIMARY KEY, item_number)`;   // sql query to create order table
+let ordersql = `CREATE TABLE IF NOT EXISTS "order" (order_number INTEGER PRIMARY KEY, item_number)`;   
 
-db.run(ordersql, (err) => {                                                                            //excute the query      
+db.run(ordersql, (err) => {                                                                                 
     if (err) {
-        console.error('Error in creating table:', err.message);                                       //error handling
+        console.error('Error in creating table:', err.message);                                       
     } else {
         console.log('the order table created successfully');
     }
 });
 
 
-app.post('/purchase/:item_number', (req, res) => {                                                     //handle post req     
+app.post('/purchase/:item_number', (req, res) => {                                                        
     const item_numberr = req.params.item_number; 
  
-    const insert_query = `INSERT INTO "order" (item_number) VALUES (?)`;                               //insert order to the order table 
-    db.run(insert_query, [item_numberr], (err) => {                                                    //excute  the query
+    const insert_query = `INSERT INTO "order" (item_number) VALUES (?)`;                              
+    db.run(insert_query, [item_numberr], (err) => {                                                    
         if (err) {
             console.error('Error in inserting the data:', err.message);
         } else {
@@ -30,12 +30,12 @@ app.post('/purchase/:item_number', (req, res) => {                              
         }
     });
 
-    const select_query = `SELECT * FROM "order"`;                                                       //query for select all order 
+    const select_query = `SELECT * FROM "order"`;                                                       
     db.all(select_query, [], (err, rows) => {
         if (err) {
             console.error(' querying error:', err.message);
         } else {
-            console.log('table result:');                                                              // print all orders 
+            console.log('table result:');                                                               
             rows.forEach((row) => {
                 console.log(row);
             });
@@ -82,7 +82,7 @@ app.post('/purchase/:item_number', (req, res) => {                              
     
     });  
 
-app.listen(port, () => {                                                                            // start the order server on port 5000
+app.listen(port, () => {                                                                            
     console.log('Server is running on port:', port);
 
 });

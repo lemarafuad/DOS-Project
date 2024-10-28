@@ -1,5 +1,6 @@
 const express = require('express');
 const http = require('http');
+const axios = require('axios');   
 const app = express();
 const port = 3000;
 
@@ -34,6 +35,18 @@ app.get('/info/:Itemid',(req,res)=>{
            res.status(500).json({ error: error.message });                            
        }
    })
+
+   app.post('/purchase/:item_number', async (req,res)=>{                                                     
+    try {
+        const response = await axios.post(`http://localhost:4000/purchase/${req.params.item_number}`);      // make an http post req to order server using axios
+        console.log('Orderd successfully');
+        console.log(response.data);
+        res.json(response.data);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+ 
+})
 
 
 
