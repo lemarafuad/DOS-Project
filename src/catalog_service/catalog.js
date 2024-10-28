@@ -3,7 +3,6 @@ const db= require('./Database.js');
 const app = express();
 const port = 5000;
 
-
 app.use(express.json());
 app.get('/search/:Topic',(req,res)=>{  
 
@@ -31,13 +30,13 @@ app.get('/info/:Itemid',(req,res)=>{
     });
 })
 
-app.put('/update/:item_number',(req,res)=>{                                     // to update the stock of an item
-    stock = req.body.Stock;                                                     //extract the stock from the body
+app.put('/update/:item_number',(req,res)=>{                                 
+    stock = req.body.Stock;                                                     
     console.log(req.body.Stock);
-    db.updateStock(stock,req.params.item_number, (err) => {         //call the updateStock method from databaseconfig to update the stock of the item
+    db.updateStock(stock,req.params.item_number, (err) => {    
 
         if (err) {
-            res.status(500).send('Error fetching data from database');          //error handling
+            res.status(500).send('Error fetching data from database');          
         } else {
             res.status(200).send('Updated');
         }
