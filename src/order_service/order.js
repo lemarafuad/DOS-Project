@@ -42,7 +42,7 @@ app.post('/purchase/:item_number', (req, res) => {
         }
     });
 
-    http.get('http://catalog:5000/info/' + req.params.item_number, (response) => { 
+    http.get('http://localhost:5000/info/' + req.params.item_number, (response) => { 
         var responseData = ''; 
         response.on("data", (chunk)=>{
         responseData = JSON.parse(chunk);
