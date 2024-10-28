@@ -51,6 +51,6 @@ app.get('/info/:Itemid',(req,res)=>{
 
 
 app.listen(port,()=>{  
-    console.log("Catalog server is running at 3000");                  
+    console.log("frontend server is running at 3000");                  
 })
 

@@ -82,7 +82,6 @@ app.post('/purchase/:item_number', (req, res) => {
     
     });  
 
-app.listen(port, () => {                                                                            
-    console.log('Server is running on port:', port);
-
-});
+    app.listen(port,()=>{  
+        console.log("order server is running at 4000");                  
+    })
