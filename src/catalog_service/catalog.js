@@ -5,7 +5,6 @@ const port = 5000;
 
 
 app.use(express.json());
-
 app.get('/search/:Topic',(req,res)=>{  
 
     db.SearchTopic(req.params.Topic , (err , data) => {                 
