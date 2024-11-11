@@ -28,10 +28,13 @@ db.serialize(() => {
     } else if (row.count === 0) {
         // Insert sample books only if the table is empty
         db.run(`INSERT INTO books (Title, Topic, Price, Stock) VALUES
-          ('How to get a good grade in DOS in 40 minutes a day', 'distributed systems', 40, 10),
+          ('How to get a good grade in DOS in 40 minutes a day', 'distributed systems', 40, 4),
           ('RPCs for Noobs', 'distributed systems', 50, 5),
           ('Xen and the Art of Surviving Undergraduate School', 'undergraduate school', 30, 8),
-          ('Cooking for the Impatient Undergrad', 'undergraduate school', 25, 7)
+          ('Cooking for the Impatient Undergrad', 'undergraduate school', 25, 7),
+          ('How to finish Project 3 on time', 'distributed systems', 10, 30),
+          ('Why theory classes are so hard', 'distributed systems', 15, 5),
+          ('Spring in the Pioneer Valley', 'undergraduate school', 30, 13),
         `);
         console.log('Sample books inserted');
     } else {
@@ -40,7 +43,20 @@ db.serialize(() => {
 });
 });
 
+
   let sql ;
+
+  function addBook(title, topic, price, stock, callback) {
+    const sql = `INSERT INTO books (Title, Topic, Price, Stock) VALUES (?, ?, ?, ?)`;
+    db.run(sql, [title, topic, price, stock], function (err) {
+        if (err) {
+            callback(err);
+        } else {
+            console.log(`Book "${title}" added successfully with ID ${this.lastID}`);
+            callback(null, { id: this.lastID, title, topic, price, stock });
+        }
+    });
+}
 
   function SearchTopic(Topic,callback){
     sql=`SELECT * FROM books where Topic=? `;
@@ -82,7 +98,8 @@ db.serialize(() => {
   module.exports = {
     SearchTopic,
     Info,
-    updateStock
+    updateStock,
+    addBook
 };
 
 
