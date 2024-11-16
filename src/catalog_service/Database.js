@@ -1,17 +1,18 @@
-const sqlite3 =require("sqlite3").verbose();
+const sqlite3 = require("sqlite3").verbose();
 
 // create new database
-const db = new sqlite3.Database('database.db',sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE,(err)=>{
-if(err){
+const db = new sqlite3.Database('database.db', sqlite3.OPEN_READWRITE | sqlite3.OPEN_CREATE, (err) => {
+  if (err) {
     console.log(err);
-}
-else{
+  }
+  else {
     console.log("connect to database");
-}})
+  }
+})
 
 // Create table
 db.serialize(() => {
-    db.run(`
+  db.run(`
       CREATE TABLE IF NOT EXISTS books (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         Title TEXT,
@@ -21,68 +22,78 @@ db.serialize(() => {
       )
     `);
 
-   // Check if the table already contains data
-   db.get(`SELECT COUNT(*) AS count FROM books`, (err, row) => {
+  // Check if the table already contains data
+  db.get(`SELECT COUNT(*) AS count FROM books`, (err, row) => {
     if (err) {
-        console.log('Error checking books table:', err);
+      console.log('Error checking books table:', err);
     } else if (row.count === 0) {
-        // Insert sample books only if the table is empty
-        db.run(`INSERT INTO books (Title, Topic, Price, Stock) VALUES
-          ('How to get a good grade in DOS in 40 minutes a day', 'distributed systems', 40, 10),
-          ('RPCs for Noobs', 'distributed systems', 50, 5),
-          ('Xen and the Art of Surviving Undergraduate School', 'undergraduate school', 30, 8),
-          ('Cooking for the Impatient Undergrad', 'undergraduate school', 25, 7)
-        `);
-        console.log('Sample books inserted');
+      // Insert sample books only if the table is empty
+      db.run(`INSERT INTO books (Title, Topic, Price, Stock) VALUES
+            ('How to get a good grade in DOS in 40 minutes a day', 'distributed systems', 40, 10),
+            ('RPCs for Noobs', 'distributed systems', 50, 5),
+            ('Xen and the Art of Surviving Undergraduate School', 'undergraduate school', 30, 8),
+            ('Cooking for the Impatient Undergrad', 'undergraduate school', 25, 7)
+          `);
+      console.log('Sample books inserted');
     } else {
-        console.log('Books table already contains data, skipping insert');
+      console.log('Books table already contains data, skipping insert');
     }
+  });
+  // Insert new books added during the spring break sale
+  db.run(`INSERT INTO books (Title, Topic, Price, Stock) VALUES
+    ('How to finish Project 3 on time', 'time management', 35, 10),
+    ('Why theory classes are so hard', 'academics', 45, 6),
+    ('Spring in the Pioneer Valley', 'travel', 30, 4)
+  `, (err) => {
+    if (err) {
+      console.log("Error inserting new books (they may already exist):", err.message);
+    } else {
+      console.log("New spring break sale books inserted successfully");
+    }
+  });
 });
-});
 
-  let sql ;
+let sql;
 
-  function SearchTopic(Topic,callback){
-    sql=`SELECT * FROM books where Topic=? `;
-    db.all(sql,[Topic],(err , rows)=>{
-    if(err)
-      {
-       callback(err,null);
-      }
-      else
-      callback(null,rows);
-    });
-  }
+function SearchTopic(Topic, callback) {
+  sql = `SELECT * FROM books where Topic=? `;
+  db.all(sql, [Topic], (err, rows) => {
+    if (err) {
+      callback(err, null);
+    }
+    else
+      callback(null, rows);
+  });
+}
 
-  function Info(id,callback){
-    sql=`SELECT * FROM books where id=? `;
-    db.all(sql,[id],(err , rows)=>{
-    if(err)
-      {
-       callback(err,null);
-      }
-      else
-      callback(null,rows);
-    });
-  }
+function Info(id, callback) {
+  sql = `SELECT * FROM books where id=? `;
+  db.all(sql, [id], (err, rows) => {
+    if (err) {
+      callback(err, null);
+    }
+    else
+      callback(null, rows);
+  });
+}
 
-  function updateStock(stock,id,callback){ 
-    sql=`UPDATE books SET stock = ? where id = ?`;
-    db.run(sql,[stock,id],(err)=>{
+function updateStock(stock, id, callback) {
+  sql = `UPDATE books SET stock = ? where id = ?`;
+  db.run(sql, [stock, id], (err) => {
 
-        if (err) {
-            //callback(err, null);
-        } else {
-            console.log("Stock updated successfully");
-        }
-    })
-        
-  }
+    if (err) {
+      //callback(err, null);
+    } else {
+      console.log("Stock updated successfully");
+    }
+  })
 
-  module.exports = {
-    SearchTopic,
-    Info,
-    updateStock
+}
+
+module.exports = {
+  SearchTopic,
+  Info,
+  updateStock
 };
 
 
