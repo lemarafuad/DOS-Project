@@ -1,102 +1,154 @@
 const express = require('express');
 const http = require('http');
-const axios = require('axios');
+const axios = require('axios');   
+const LRU = require('lru-cache');  // LRU cache implementation
 const app = express();
 const port = 3000;
 
+// Catalog and order replica endpoints
+const catalogReplicas = ['http://catalog1:5000', 'http://catalog2:5000'];
+const orderReplicas = ['http://order1:6000', 'http://order2:6000'];
 
-const catalogServers = ['http://catalog1:5000', 'http://catalog2:5000'];
-const orderServers = ['http://order1:4000', 'http://order2:4000'];
-let catalogIndex = 0;
+// for round-robin load balancing
+let catalogIndex = 0;   
 let orderIndex = 0;
 
-function getNextCatalogServer() {
-    const server = catalogServers[catalogIndex];
-    catalogIndex = (catalogIndex + 1) % catalogServers.length;
-    return server;
-}
 
-function getNextOrderServer() {
-    const server = orderServers[orderIndex];
-    orderIndex = (orderIndex + 1) % orderServers.length;
-    return server;
-}
+// Cache with LRU replacement policy
+const cache = new LRU({ max: 100 }); 
 
-// Simple in-memory cache
-const cache = new Map();
 
-// Cache timeout in milliseconds (e.g., 5 minutes)
-const CACHE_TIMEOUT = 5 * 60 * 1000;
+// Simple round-robin load balancer
+function getCatalogReplica() {
+    const replica = catalogReplicas[catalogIndex];
+    catalogIndex = (catalogIndex + 1) % catalogReplicas.length;
+    return replica;
+  }
+  
+  function getOrderReplica() {
+    const replica = orderReplicas[orderIndex];
+    orderIndex = (orderIndex + 1) % orderReplicas.length;
+    return replica;
+  }
 
-// Helper function to check and retrieve from cache
-function getFromCache(key) {
-    const cacheEntry = cache.get(key);
-    if (cacheEntry && (Date.now() - cacheEntry.timestamp < CACHE_TIMEOUT)) {
-        return cacheEntry.data;
-    } else {
-        cache.delete(key); // Remove expired cache
-        return null;
-    }
-}
-
-// Helper function to add data to cache
-function addToCache(key, data) {
-    cache.set(key, { data, timestamp: Date.now() });
-}
 
 app.get('/search/:Topic', async (req, res) => {
-    const cacheKey = `search_${req.params.Topic}`;
-    const cachedData = getFromCache(cacheKey);
+  const topic = req.params.Topic;
 
-    if (cachedData) {
-        console.log('Cache hit for search');
-        return res.json(cachedData);
-    }
+  if (cache.has(topic)) {
+    console.log('from cache');
+    return res.json(cache.get(topic));
+  }
 
-    const catalogServer = getNextCatalogServer();
+  try {
+    const replica = getCatalogReplica();
+    const response = await axios.get(`${replica}/search/${topic}`);
+    const topicData = response.data;
 
-    try {
-        const response = await axios.get(`${catalogServer}/search/${req.params.Topic}`);
-        const data = response.data;
-        addToCache(cacheKey, data);
-        res.json(data);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+    cache.set(topic,topicData);
+    res.json(topicData);
+    console.log('Fetched from catalog and cached');
+  } catch (error) {
+    res.status(500).send('Error fetching catalog data');
+  }
 });
+
+/*app.get('/search/:Topic',(req,res)=>{ 
+
+ try {
+    http.get('http://catalog:5000/search/'+req.params.Topic,( response)=>{    // send to catalog server    
+        response.on("data", (chunk)=>{
+            const responseData = JSON.parse(chunk);                                  
+            res.json(responseData)                                                   
+            console.log('Fetched successfully');
+            console.log(responseData);
+        });     
+})
+    }catch (error) {                                                                
+        res.status(500).json({ error: error.message });                            
+    }
+})*/
+
 
 app.get('/info/:Itemid', async (req, res) => {
-    const cacheKey = `info_${req.params.Itemid}`;
-    const cachedData = getFromCache(cacheKey);
-
-    if (cachedData) {
-        console.log('Cache hit for info');
-        return res.json(cachedData);
+    const bookId = req.params.Itemid;
+  
+    // Check cache first
+    if (cache.has(bookId)) {
+      console.log('from cache');
+      return res.json(cache.get(bookId));
     }
-
-    const catalogServer = getNextCatalogServer();
-
+  
     try {
-        const response = await axios.get(`${catalogServer}/info/${req.params.Itemid}`);
-        const data = response.data;
-        addToCache(cacheKey, data);
-        res.json(data);
+      // Forward request to catalog replica
+      const replica = getCatalogReplica();
+      const response = await axios.get(`${replica}/info/${bookId}`);
+      const bookData = response.data;
+  
+      // Cache the response
+      cache.set(bookId, bookData);
+      res.json(bookData);
+      console.log('Fetched from catalog and cached');
     } catch (error) {
-        res.status(500).json({ error: error.message });
+      res.status(500).send('Error fetching catalog data');
     }
-});
+  });
 
-app.post('/purchase/:item_number', async (req, res) => {
-    const orderServer = getNextOrderServer();
+/*app.get('/info/:Itemid',(req,res)=>{ 
 
     try {
-        const response = await axios.post(`${orderServer}/purchase/${req.params.item_number}`);
+       http.get('http://catalog:5000/info/'+req.params.Itemid,( response)=>{       
+           response.on("data", (chunk)=>{
+               const responseData = JSON.parse(chunk);                                  
+               res.json(responseData)                                                   
+               console.log('Fetched successfully');
+               console.log(responseData);
+           });     
+   })
+       }catch (error) {                                                                
+           res.status(500).json({ error: error.message });                            
+       }
+   })
+*/
+
+// Endpoint to place an order
+/*app.post('/order', async (req, res) => {
+    const { bookId, quantity } = req.body;
+  
+    try {
+      const replica = getOrderReplica();
+      const response = await axios.post(`${replica}/order`, { bookId, quantity });
+      
+      // Invalidate cache for updated book
+      cache.del(bookId);
+      
+      res.json(response.data);
+    } catch (error) {
+      res.status(500).send('Error placing order');
+    }
+  });
+*/
+  
+app.post('/purchase/:item_number', async (req,res)=>{                                                     
+    try {
+        const response = await axios.post(`http://order:4000/purchase/${req.params.item_number}`);      // make an http post req to order server using axios
+        console.log('Orderd successfully');
+        console.log(response.data);
         res.json(response.data);
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
+ 
+})
+
+// Cache invalidation endpoint (called by catalog/order replicas)
+app.post('/invalidate', (req, res) => {
+  const bookId = req.body.id;
+  cache.del(bookId);
+  res.send(`Cache invalidated for book id: ${bookId}`);
 });
 
-app.listen(port, () => {
-    console.log(`Frontend server is running at ${port}`);
-});
+app.listen(port,()=>{  
+    console.log(`frontend server is running at ${port}`);                  
+})
+
