@@ -6,8 +6,8 @@ const app = express();
 const port = 3000;
 
 // Catalog and order replica endpoints
-const catalogReplicas = ['http://catalog1:5000', 'http://catalog2:5000'];
-const orderReplicas = ['http://order1:6000', 'http://order2:6000'];
+const catalogReplicas = ['http://catalog1:5000', 'http://catalog2:5001'];
+const orderReplicas = ['http://order1:4000', 'http://order2:4001'];
 
 // for round-robin load balancing
 let catalogIndex = 0;   
@@ -15,8 +15,8 @@ let orderIndex = 0;
 
 
 // Cache with LRU replacement policy
-const cache = new LRU({ max: 100 }); 
-
+const catalogCache = new LRU({ max: 100 });  // Cache for catalog data
+const orderCache = new LRU({ max: 100 });    // Cache for order data
 
 // Simple round-robin load balancer
 function getCatalogReplica() {
@@ -35,17 +35,20 @@ function getCatalogReplica() {
 app.get('/search/:Topic', async (req, res) => {
   const topic = req.params.Topic;
 
-  if (cache.has(topic)) {
+  if (catalogCache.has(topic)) {
     console.log('from cache');
-    return res.json(cache.get(topic));
+    return res.json(catalogCache.get(topic));
   }
 
   try {
     const replica = getCatalogReplica();
     const response = await axios.get(`${replica}/search/${topic}`);
+    // print port
+    const replicaPort = new URL(replica).port; 
+    console.log(`Using replica on port: ${replicaPort}`);
     const topicData = response.data;
 
-    cache.set(topic,topicData);
+    catalogCache.set(topic,topicData);
     res.json(topicData);
     console.log('Fetched from catalog and cached');
   } catch (error) {
@@ -74,9 +77,9 @@ app.get('/info/:Itemid', async (req, res) => {
     const bookId = req.params.Itemid;
   
     // Check cache first
-    if (cache.has(bookId)) {
+    if (catalogCache.has(bookId)) {
       console.log('from cache');
-      return res.json(cache.get(bookId));
+      return res.json(catalogCache.get(bookId));
     }
   
     try {
@@ -86,7 +89,7 @@ app.get('/info/:Itemid', async (req, res) => {
       const bookData = response.data;
   
       // Cache the response
-      cache.set(bookId, bookData);
+      catalogCache.set(bookId, bookData);
       res.json(bookData);
       console.log('Fetched from catalog and cached');
     } catch (error) {
@@ -111,25 +114,9 @@ app.get('/info/:Itemid', async (req, res) => {
    })
 */
 
-// Endpoint to place an order
-/*app.post('/order', async (req, res) => {
-    const { bookId, quantity } = req.body;
-  
-    try {
-      const replica = getOrderReplica();
-      const response = await axios.post(`${replica}/order`, { bookId, quantity });
-      
-      // Invalidate cache for updated book
-      cache.del(bookId);
-      
-      res.json(response.data);
-    } catch (error) {
-      res.status(500).send('Error placing order');
-    }
-  });
-*/
-  
-app.post('/purchase/:item_number', async (req,res)=>{                                                     
+
+
+/*app.post('/purchase/:item_number', async (req,res)=>{                                                     
     try {
         const response = await axios.post(`http://order:4000/purchase/${req.params.item_number}`);      // make an http post req to order server using axios
         console.log('Orderd successfully');
@@ -139,13 +126,36 @@ app.post('/purchase/:item_number', async (req,res)=>{
         res.status(500).json({ error: error.message });
     }
  
-})
+})*/
 
-// Cache invalidation endpoint (called by catalog/order replicas)
-app.post('/invalidate', (req, res) => {
-  const bookId = req.body.id;
-  cache.del(bookId);
-  res.send(`Cache invalidated for book id: ${bookId}`);
+app.post('/purchase/:item_number', async (req, res) => {
+  const itemNumber = req.params.item_number;
+
+  // Check cache
+  if (orderCache.has(itemNumber)) {
+    console.log('From cache');
+    return res.json(orderCache.get(itemNumber));
+  }
+
+  try {
+    // Use replica
+    const replica = getOrderReplica();
+    const replicaPort = new URL(replica).port; // Extract port for logging
+    console.log(`Using replica on port: ${replicaPort}`);
+
+    // Make the HTTP POST request to the selected replica
+    const response = await axios.post(`${replica}/purchase/${itemNumber}`);
+    const purchaseData = response.data;
+
+    // Store the response in the cache
+    orderCache.set(itemNumber, purchaseData);
+    console.log('Ordered successfully and cached:', purchaseData);
+
+    // Send response to the client
+    res.json(purchaseData);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
 app.listen(port,()=>{  
