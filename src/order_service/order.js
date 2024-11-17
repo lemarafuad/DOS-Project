@@ -1,85 +1,109 @@
-//import the require modules 
 const express = require('express');
 const http = require('http');
 const axios = require('axios');
 const sqlite3 = require('sqlite3').verbose();
+const LRU = require('lru-cache'); // LRU cache implementation
 const db = new sqlite3.Database('dbase.db');
 const app = express();
-const port = 4000;
+const port = process.env.PORT || 4000;
 
-let ordersql = `CREATE TABLE IF NOT EXISTS "order" (order_number INTEGER PRIMARY KEY, item_number)`;
+// Catalog replica endpoints
+const catalogReplicas = ['http://localhost:5000', 'http://localhost:5001'];
 
+// for round-robin load balancing
+let catalogIndex = 0;
+
+// Cache for purchase results
+const orderCache = new LRU({ max: 100 });
+
+// Round-robin load balancer for catalog replicas
+function getCatalogReplica() {
+    const replica = catalogReplicas[catalogIndex];
+    console.log(`Selected catalog replica: ${replica} (index: ${catalogIndex})`);
+    catalogIndex = (catalogIndex + 1) % catalogReplicas.length;
+    return replica;
+}
+
+// Create the order table if it doesn't exist
+let ordersql = `CREATE TABLE IF NOT EXISTS "order" (order_number INTEGER PRIMARY KEY, item_number TEXT)`;
 db.run(ordersql, (err) => {
     if (err) {
-        console.error('Error in creating table:', err.message);
+        console.error('Error creating table:', err.message);
     } else {
-        console.log('the order table created successfully');
+        console.log('Order table created successfully');
     }
 });
 
-
 app.post('/purchase/:item_number', (req, res) => {
-    const item_numberr = req.params.item_number;
+    const item_number = req.params.item_number;
 
-    const insert_query = `INSERT INTO "order" (item_number) VALUES (?)`;
-    db.run(insert_query, [item_numberr], (err) => {
-        if (err) {
-            console.error('Error in inserting the data:', err.message);
-        } else {
-            console.log('inserted successfully');
-        }
-    });
+    // Check if the result for this item is already cached
+    if (orderCache.has(item_number)) {
+        console.log('Fetched from cache');
+        return res.json(orderCache.get(item_number));
+    }
 
-    const select_query = `SELECT * FROM "order"`;
-    db.all(select_query, [], (err, rows) => {
-        if (err) {
-            console.error(' querying error:', err.message);
-        } else {
-            console.log('table result:');
-            rows.forEach((row) => {
-                console.log(row);
-            });
-        }
-    });
+    // Fetch the item's stock information from a catalog replica
+    const catalogReplica = getCatalogReplica();
+    http.get(`${catalogReplica}/info/${item_number}`, (response) => {
+        let responseData = '';
 
-    http.get('http://localhost:5000/info/' + req.params.item_number, (response) => { 
-        var responseData = ''; 
-        response.on("data", (chunk)=>{
-        responseData = JSON.parse(chunk);
-        console.log('Fetched successfully');
-        console.log(responseData);
-
+        response.on('data', (chunk) => {
+            responseData += chunk;
         });
 
         response.on('end', () => {
             try {
-    
-                    if (responseData[0].Stock > 0) {
-                        const updatedStock = responseData[0].Stock - 1;
-    
-                        const updatedData = { Stock: updatedStock };
-    
-                        axios.put('http://localhost:5000/update/' + req.params.item_number, updatedData)
-                            .then(( response) => {
-                                console.log("Stock updated successfully");
-                                res.json({ message: 'Purchase completed' });
-                            })
-                            .catch((error) => {
-                                console.error("Error updating stock:", error);
-                                res.status(500).json({ message: 'Error updating stock' });
+                const parsedData = JSON.parse(responseData);
+                const stock = parsedData[0]?.Stock;
+
+                if (stock > 0) {
+                    const updatedStock = stock - 1;
+                    const updatedData = { Stock: updatedStock };
+
+                    // Update stock in the catalog service
+                    axios.put(`${catalogReplica}/update/${item_number}`, updatedData)
+                        .then(() => {
+                            console.log("Stock updated successfully");
+
+                            // Save order to database
+                            const insertQuery = `INSERT INTO "order" (item_number) VALUES (?)`;
+                            db.run(insertQuery, [item_number], (err) => {
+                                if (err) {
+                                    console.error('Error inserting data into database:', err.message);
+                                } else {
+                                    console.log('Order inserted successfully');
+                                }
                             });
-                            res.json({ message: 'Purchase completed' });
-                    } else {
-                        res.json({ message: 'Item is sold out' });
-                    }
+
+                            const purchaseResult = { message: 'Purchase completed' };
+
+                            // Cache the result
+                            orderCache.set(item_number, purchaseResult);
+
+                            res.json(purchaseResult);
+                        })
+                        .catch((error) => {
+                            console.error("Error updating stock:", error);
+                            res.status(500).json({ message: 'Error updating stock' });
+                        });
+                } else {
+                    const outOfStockResult = { message: 'Item is sold out' };
+
+                    // Cache the result
+                    orderCache.set(item_number, outOfStockResult);
+
+                    res.json(outOfStockResult);
+                }
             } catch (error) {
                 console.error("Failed to parse JSON:", error, responseData);
                 res.status(500).json({ message: 'Error parsing item info' });
             }
         });
-
+    }).on('error', (error) => {
+        console.error("Error fetching item info:", error.message);
+        res.status(500).json({ message: 'Error fetching item info' });
     });
-
 });
 
 app.listen(port, () => {
