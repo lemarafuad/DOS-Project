@@ -16,7 +16,6 @@ let orderIndex = 0;
 
 // Cache with LRU replacement policy
 const catalogCache = new LRU({ max: 100 });  // Cache for catalog data
-const orderCache = new LRU({ max: 100 });    // Cache for order data
 
 // Simple round-robin load balancer
 function getCatalogReplica() {
@@ -45,7 +44,7 @@ app.get('/search/:Topic', async (req, res) => {
     const response = await axios.get(`${replica}/search/${topic}`);
     // print port
     const replicaPort = new URL(replica).port; 
-    console.log(`Using replica on port: ${replicaPort}`);
+    console.log(`Using replica catalog on port: ${replicaPort}`);
     const topicData = response.data;
 
     catalogCache.set(topic,topicData);
@@ -85,6 +84,9 @@ app.get('/info/:Itemid', async (req, res) => {
     try {
       // Forward request to catalog replica
       const replica = getCatalogReplica();
+        // print port
+    const replicaPort = new URL(replica).port; 
+    console.log(`Using replica catalog on port: ${replicaPort}`);
       const response = await axios.get(`${replica}/info/${bookId}`);
       const bookData = response.data;
   
@@ -131,24 +133,23 @@ app.get('/info/:Itemid', async (req, res) => {
 app.post('/purchase/:item_number', async (req, res) => {
   const itemNumber = req.params.item_number;
 
-  // Check cache
-  if (orderCache.has(itemNumber)) {
-    console.log('From cache');
-    return res.json(orderCache.get(itemNumber));
-  }
-
   try {
+    // Check cache
+     if (catalogCache.has(itemNumber)) {
+    catalogCache.del(itemNumber);  // Delete outdated cache
+    console.log('delet old data from cache');
+     }
+
     // Use replica
     const replica = getOrderReplica();
-    const replicaPort = new URL(replica).port; // Extract port for logging
+    const replicaPort = new URL(replica).port; 
     console.log(`Using replica on port: ${replicaPort}`);
 
-    // Make the HTTP POST request to the selected replica
     const response = await axios.post(`${replica}/purchase/${itemNumber}`);
     const purchaseData = response.data;
 
     // Store the response in the cache
-    orderCache.set(itemNumber, purchaseData);
+    catalogCache.set(itemNumber, purchaseData);
     console.log('Ordered successfully and cached:', purchaseData);
 
     // Send response to the client
@@ -157,6 +158,8 @@ app.post('/purchase/:item_number', async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 });
+
+
 
 app.listen(port,()=>{  
     console.log(`frontend server is running at ${port}`);                  
