@@ -6,27 +6,22 @@ const app = express();
 const port = 3000;
 
 // Catalog and order replica endpoints
-const catalogReplicas = ['http://localhost:5000', 'http://localhost:5001'];
-const orderReplicas = ['http://localhost:4000', 'http://localhost:4001'];
-
-// for round-robin load balancing
-let catalogIndex = 0;
-let orderIndex = 0;
 
 
-// Cache with LRU replacement policy
 const catalogCache = new LRU({ max: 100 });  // Cache for catalog data
 const orderCache = new LRU({ max: 100 });    // Cache for order data
 
 
+const catalogReplicas = ['http://localhost:5000', 'http://localhost:5001'];
+const orderReplicas = ['http://localhost:4000', 'http://localhost:4001'];
+let catalogIndex = 0;
+let orderIndex = 0;
 function getCatalogReplica() {
   const replica = catalogReplicas[catalogIndex];
   console.log(`Selected catalog replica: ${replica} (index: ${catalogIndex})`);
   catalogIndex = (catalogIndex + 1) % catalogReplicas.length;
   return replica;
 }
-
-
 function getOrderReplica() {
   const replica = orderReplicas[orderIndex];
   console.log(`Selected order replica: ${replica} (index: ${orderIndex})`);
