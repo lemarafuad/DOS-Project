@@ -62,6 +62,7 @@ function SearchTopic(Topic, callback) {
       callback(err, null);
     } else {
       callback(null, rows);
+    }
   });
 }
 
