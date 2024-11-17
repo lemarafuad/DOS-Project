@@ -42,36 +42,36 @@ app.post('/purchase/:item_number', (req, res) => {
         }
     });
 
-    http.get('http://localhost:5000/info/' + req.params.item_number, (response) => {
-        var responseData = '';
-        response.on("data", (chunk) => {
-            responseData = JSON.parse(chunk);
-            console.log('Fetched successfully');
-            console.log(responseData);
+    http.get('http://localhost:5000/info/' + req.params.item_number, (response) => { 
+        var responseData = ''; 
+        response.on("data", (chunk)=>{
+        responseData = JSON.parse(chunk);
+        console.log('Fetched successfully');
+        console.log(responseData);
 
         });
 
         response.on('end', () => {
             try {
-
-                if (responseData[0].Stock > 0) {
-                    const updatedStock = responseData[0].Stock - 1;
-
-                    const updatedData = { Stock: updatedStock };
-
-                    axios.put('http://localhost:5000/update/' + req.params.item_number, updatedData)
-                        .then((response) => {
-                            console.log("Stock updated successfully");
+    
+                    if (responseData[0].Stock > 0) {
+                        const updatedStock = responseData[0].Stock - 1;
+    
+                        const updatedData = { Stock: updatedStock };
+    
+                        axios.put('http://localhost:5000/update/' + req.params.item_number, updatedData)
+                            .then(( response) => {
+                                console.log("Stock updated successfully");
+                                res.json({ message: 'Purchase completed' });
+                            })
+                            .catch((error) => {
+                                console.error("Error updating stock:", error);
+                                res.status(500).json({ message: 'Error updating stock' });
+                            });
                             res.json({ message: 'Purchase completed' });
-                        })
-                        .catch((error) => {
-                            console.error("Error updating stock:", error);
-                            res.status(500).json({ message: 'Error updating stock' });
-                        });
-                    res.json({ message: 'Purchase completed' });
-                } else {
-                    res.json({ message: 'Item is sold out' });
-                }
+                    } else {
+                        res.json({ message: 'Item is sold out' });
+                    }
             } catch (error) {
                 console.error("Failed to parse JSON:", error, responseData);
                 res.status(500).json({ message: 'Error parsing item info' });
