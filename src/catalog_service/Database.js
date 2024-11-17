@@ -44,9 +44,9 @@ db.serialize(() => {
     });
 
     db.run(`INSERT INTO books (Title, Topic, Price, Stock) VALUES
-            ('How to finish Project 3 on time', 'time management', 35, 10),
-            ('Why theory classes are so hard', 'academics', 45, 6),
-            ('Spring in the Pioneer Valley', 'travel', 30, 4)
+            ('How to finish Project 3 on time', 'distributed systems', 35, 10),
+            ('Why theory classes are so hard', 'undergraduate school', 45, 6),
+            ('Spring in the Pioneer Valley', 'distributed systems', 30, 4)
     `, (err) => {
       if (err) {
         console.log("Error inserting spring break sale books:", err.message);
